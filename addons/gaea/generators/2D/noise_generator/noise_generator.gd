@@ -103,69 +103,70 @@ func _set_grid_area(rect: Rect2i) -> void:
 					break
 
 func replace_tiles():
-	var grid_size = Vector2i(settings.world_size)
-	
 	var tile_types = {
 		'DEEPWATER': get_tile_by_id(settings.tiles, 'TILE_DEEPWATER'),
 		'WATER': get_tile_by_id(settings.tiles, 'TILE_WATER'),
 		'SAND': get_tile_by_id(settings.tiles, 'TILE_SAND'),
 		'GRASS': get_tile_by_id(settings.tiles, 'TILE_GRASS'),
-		'MOUNTAIN': get_tile_by_id(settings.tiles, 'TILE_MOUNTAIN')
+		'MOUNTAIN': get_tile_by_id(settings.tiles, 'TILE_MOUNTAIN'),
+		'SNOW': get_tile_by_id(settings.tiles, 'TILE_SNOW')
 	}
 	
 	var connecting_tiles = get_tile_by_id(settings.tiles, 'CONNECTING_TILES')
 	var connecting_tile_types = {
+		'DEEPWATER_WATER': get_tile_by_id(connecting_tiles.tiles, 'TILE_DEEPWATER_WATER'),
 		'WATER_SAND': get_tile_by_id(connecting_tiles.tiles, 'TILE_WATER_SAND'),
 		'SAND_GRASS': get_tile_by_id(connecting_tiles.tiles, 'TILE_SAND_GRASS'),
-		'DEEPWATER_WATER': get_tile_by_id(connecting_tiles.tiles, 'TILE_DEEPWATER_WATER')
+		'GRASS_MOUNTAIN': get_tile_by_id(connecting_tiles.tiles, 'TILE_GRASS_MOUNTAIN'),
+		'MOUNTAIN_SNOW': get_tile_by_id(connecting_tiles.tiles, 'TILE_MOUNTAIN_SNOW')
 	}
 	
+	iterate_and_replace_tiles(tile_types, 'GRASS', tile_types.get('SNOW'), tile_types.get('MOUNTAIN'))
+	iterate_and_replace_tiles(tile_types, 'SAND', tile_types.get('MOUNTAIN'), tile_types.get('GRASS'))
+	iterate_and_replace_tiles(tile_types, 'WATER', tile_types.get('GRASS'), tile_types.get('SAND'))
+	iterate_and_replace_tiles(tile_types, 'DEEPWATER', tile_types.get('SAND'), tile_types.get('WATER'))
+	
+	iterate_and_replace_tiles(tile_types, 'DEEPWATER', tile_types.get('WATER'), connecting_tile_types.get('DEEPWATER_WATER'), true)
+	iterate_and_replace_tiles(tile_types, 'WATER', tile_types.get('SAND'), connecting_tile_types.get('WATER_SAND'), true)
+	iterate_and_replace_tiles(tile_types, 'SAND', tile_types.get('GRASS'), connecting_tile_types.get('SAND_GRASS'), true)
+	iterate_and_replace_tiles(tile_types, 'GRASS', tile_types.get('MOUNTAIN'), connecting_tile_types.get('GRASS_MOUNTAIN'), true)
+	iterate_and_replace_tiles(tile_types, 'MOUNTAIN', tile_types.get('SNOW'), connecting_tile_types.get('MOUNTAIN_SNOW'), true)
+
+func iterate_and_replace_tiles(tile_types: Dictionary, current_tile_type_str: String, adjacent_tile_type: Object, replacement_tile_type: Object, is_connecting_tile: bool = false):
+	var grid_size = Vector2i(settings.world_size)
 	for x in range(grid_size.x):
 		for y in range(grid_size.y):
 			var tile_position = Vector2i(x, y)
-			
 			for layer in range(grid.get_layer_count()):
 				var current_tile = grid.get_value(tile_position, layer)
 				var current_tile_type = get_tile_type(current_tile, tile_types)
-				
 				match current_tile_type:
-					'DEEPWATER':
-						replace_with_connecting_tile(tile_position, layer, tile_types.get('WATER'), connecting_tile_types.get('DEEPWATER_WATER'))
-					'WATER':
-						replace_with_connecting_tile(tile_position, layer, tile_types.get('SAND'), connecting_tile_types.get('WATER_SAND'))
-					'SAND':
-						replace_with_connecting_tile(tile_position, layer, tile_types.get('GRASS'), connecting_tile_types.get('SAND_GRASS'))
-					'GRASS':
-						# TODO: GRASS_MOUNTAIN
-						continue
-					'MOUNTAIN':
-						# TODO: MOUNTAIN_MOUNTAIN
-						continue
+					current_tile_type_str:
+						replace_with_tile(tile_position, layer, adjacent_tile_type, replacement_tile_type, is_connecting_tile)
 
-func replace_with_connecting_tile(tile_position, layer, adjacent_tile_type, replacement_tile_type):
+func replace_with_tile(tile_position: Vector2i, layer: int, adjacent_tile_type: Object, replacement_tile_type: Object, is_connecting_tile: bool = false):
 	var adjacent_directions = is_adjacent_to_tile(tile_position, adjacent_tile_type)
 	if adjacent_directions.size():
-		var connecting_tile = get_tile_for_direction(adjacent_directions, replacement_tile_type)
-		if connecting_tile:
-			grid.set_value(tile_position, connecting_tile, layer)
+		if is_connecting_tile:
+			replacement_tile_type = get_tile_for_direction(adjacent_directions, replacement_tile_type)
+		grid.set_value(tile_position, replacement_tile_type, layer)
 
-func get_tile_by_id(tiles_array, tile_id: String):
-	for tile_data in tiles_array:
-		if 'tile' in tile_data and tile_data.tile.id == tile_id:
-			return tile_data.tile
-		elif 'id' in tile_data and tile_data.id == tile_id:
-			return tile_data
+func get_tile_by_id(tiles_array: Array, tile_id: String) -> Object:
+	for tile in tiles_array:
+		if 'tile' in tile and tile.tile.id == tile_id:
+			return tile.tile
+		elif 'id' in tile and tile.id == tile_id:
+			return tile
 	return null
 
-func get_tile_type(current_tile, tile_types) -> String:
+func get_tile_type(current_tile: Object, tile_types: Dictionary) -> String:
 	for tile_type in tile_types.keys():
 		for tile in tile_types[tile_type].tiles:
 			if current_tile == tile:
 				return tile_type
-	
 	return ''
 
-func is_adjacent_to_tile(tile_position: Vector2i, adjacent_tile_type) -> Array:
+func is_adjacent_to_tile(tile_position: Vector2i, adjacent_tile_type: Object) -> Array:
 	var adjacent_positions = {
 		Vector2(0, -1): tile_position + Vector2i(0, -1),  # Top
 		Vector2(0, 1): tile_position + Vector2i(0, 1),  # Bottom
@@ -178,21 +179,19 @@ func is_adjacent_to_tile(tile_position: Vector2i, adjacent_tile_type) -> Array:
 	}
 	
 	var adjacent_directions = []
-	
 	for direction in adjacent_positions.keys():
-		var pos = adjacent_positions[direction]
-		if is_in_bounds(pos):
+		var position = adjacent_positions[direction]
+		if is_in_bounds(position):
 			for i in range(grid.get_layer_count()):
 				for tile in adjacent_tile_type.tiles:
-					if grid.get_value(pos, i) == tile:
+					if grid.get_value(position, i) == tile:
 						adjacent_directions.append(direction)
-	
 	return adjacent_directions
 
-func is_in_bounds(pos: Vector2i) -> bool:
-	return pos.x >= 0 and pos.x < settings.world_size.x and pos.y >= 0 and pos.y < settings.world_size.y
+func is_in_bounds(position: Vector2i) -> bool:
+	return position.x >= 0 and position.x < settings.world_size.x and position.y >= 0 and position.y < settings.world_size.y
 
-func get_tile_for_direction(adjecent_directions: Array, replacement_tile_type):
+func get_tile_for_direction(adjecent_directions: Array, replacement_tile_type: Object) -> Object:
 	var is_N = false
 	var is_S = false
 	var is_E = false
