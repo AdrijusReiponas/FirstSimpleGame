@@ -1,7 +1,7 @@
 extends CharacterBody2D
 
 
-const speed = 50.0
+const speed = 350.0
 
 func get_input():
 	velocity = Vector2()
@@ -13,13 +13,13 @@ func get_input():
 		velocity.y += 1
 	if Input.is_action_pressed('ui_up'):
 		velocity.y -= 1
-		
+	
 	velocity = velocity.normalized() * speed
 	
 	# Toggle CollisionShape2D with "ui_accept" action
 	if Input.is_action_just_pressed("ui_accept"):
-		$CollisionShape2D.disabled = !$CollisionShape2D.disabled
-		
+		$PlayerCollision.disabled = !$PlayerCollision.disabled
+	
 func _physics_process(delta):
 	get_input()
 	move_and_slide()

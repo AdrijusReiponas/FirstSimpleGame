@@ -131,7 +131,7 @@ func replace_tiles():
 	iterate_and_replace_tiles(tile_types, 'SAND', tile_types.get('GRASS'), connecting_tile_types.get('SAND_GRASS'), true)
 	iterate_and_replace_tiles(tile_types, 'GRASS', tile_types.get('MOUNTAIN'), connecting_tile_types.get('GRASS_MOUNTAIN'), true)
 	iterate_and_replace_tiles(tile_types, 'MOUNTAIN', tile_types.get('SNOW'), connecting_tile_types.get('MOUNTAIN_SNOW'), true)
-
+	
 func iterate_and_replace_tiles(tile_types: Dictionary, current_tile_type_str: String, adjacent_tile_type: Object, replacement_tile_type: Object, is_connecting_tile: bool = false):
 	var grid_size = Vector2i(settings.world_size)
 	for x in range(grid_size.x):
